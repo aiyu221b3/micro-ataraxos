@@ -65,7 +65,7 @@ The experiments investigate these mechanisms in a reduced environment. They are 
 
 The current experimental suite includes three independent training seeds, multiple training checkpoints, search ablations, and belief-model evaluation.
 
-The figures below are generated from the recorded experimental results. Training curves use the recorded training iterations as their horizontal axis. The nominal budget labels retained in the CSVs are bookkeeping labels, not verified counts of actual environment interactions.
+The figures below are generated from the recorded experimental results. Training curves use nominal training-budget labels derived from recorded training iterations (`iteration × 2,500`). These labels are bookkeeping values, not verified counts of actual environment interactions.
 
 ### 1. Self-play learning and regularization
 
@@ -156,8 +156,6 @@ micro-ataraxos/
         ├── fig1_ataraxos_mechanisms.png
         └── fig2_search_and_setups.png
 ```
-
-*Note: filenames and output paths may differ slightly across versions of the reproduction. Check the committed source and experiment runner for the exact file names and locations.*
 
 ### Core modules
 
