@@ -353,6 +353,7 @@ def plot_results(df_rl=None, df_search=None, trained_control_models=None):
                 "results/setup_frequencies.csv", index_col=0
             ).values
         except FileNotFoundError:
+            print("using hardcoded values")
             heat_matrix = np.array([
                 [20.2, 79.8,  0.0,  0.0],
                 [21.4,  3.7, 28.3, 46.5],
