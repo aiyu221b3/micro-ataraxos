@@ -67,6 +67,8 @@ The experiments investigate these mechanisms in a reduced environment. They are 
 The current experimental suite includes three independent training seeds, multiple training budgets, search ablations, and belief-model evaluation.
 
 ### 1. Self-play learning and regularization
+![Ataraxos self-play mechanism ablations](results/figures/fig1.png)
+
 
 The experiments compare the full training configuration against variants without learning-rate annealing, advantage filtering, or regularization annealing. A separate zero-regularization condition examines policy behaviour when regularization is removed.
 
@@ -87,6 +89,7 @@ These results are consistent with the full configuration performing best on the 
 The two regularization ablations are distinct experiments and should not be interpreted interchangeably.
 
 ### 2. Test-time update-equivalence search
+![Search ablations and learned setup frequencies](results/figures/fig2.png)
 
 The search experiments compare five conditions:
 
