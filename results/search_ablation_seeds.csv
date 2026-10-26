@@ -1,0 +1,31 @@
+condition,seed,wins,losses,draws,eff_wr
+"Raw Policy Network
+(No Search Baseline)",42,50,44,26,52.5
+"Full Ataraxos Search
+(Learned Belief, d=6, K=48)",42,81,17,22,76.66666666666667
+"Shallow Search
+(Learned Belief, d=2, K=16)",42,45,51,24,47.5
+"Uniform Belief Ablation
+(Uniform Prior, d=6, K=48)",42,37,38,45,49.583333333333336
+"No Network KL
+(beta_net=0, beta_mag=0.002)",42,78,24,18,72.5
+"Raw Policy Network
+(No Search Baseline)",43,38,56,26,42.5
+"Full Ataraxos Search
+(Learned Belief, d=6, K=48)",43,76,20,24,73.33333333333333
+"Shallow Search
+(Learned Belief, d=2, K=16)",43,42,42,36,50.0
+"Uniform Belief Ablation
+(Uniform Prior, d=6, K=48)",43,55,47,18,53.333333333333336
+"No Network KL
+(beta_net=0, beta_mag=0.002)",43,85,14,21,79.58333333333333
+"Raw Policy Network
+(No Search Baseline)",44,56,31,33,60.416666666666664
+"Full Ataraxos Search
+(Learned Belief, d=6, K=48)",44,82,16,22,77.5
+"Shallow Search
+(Learned Belief, d=2, K=16)",44,46,42,32,51.66666666666667
+"Uniform Belief Ablation
+(Uniform Prior, d=6, K=48)",44,46,33,41,55.41666666666667
+"No Network KL
+(beta_net=0, beta_mag=0.002)",44,73,25,22,70.0
