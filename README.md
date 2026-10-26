@@ -45,7 +45,6 @@ torch.bmm(Q, K.transpose(1, 2)) * scale
 
 Here, `Q` and `K` are the query and key representations, respectively, and `scale` implements the inverse-square-root scaling.
 
-This formulation is included separately from the table to keep the mathematical explanation readable on GitHub.
 
 ---
 
@@ -59,7 +58,7 @@ The reproduction focuses on five mechanism-level questions:
 4. How does policy entropy evolve under different regularization configurations?
 5. How do the current policy iterate and EMA weights differ during training?
 
-The experiments investigate these mechanisms in a reduced environment. They are not intended to estimate full-scale Stratego performance.
+The experiments investigate these mechanisms in a reduced environment. They are not intended to estimate full-scale Stratego performance!
 
 ---
 
@@ -193,7 +192,7 @@ Run the experiment suite:
 python run_reproduction.py
 ```
 
-The runner is intended to produce per-seed CSV files and publication-style figures. Refer to the source for the exact training configuration, random seeds, and output paths.
+The runner is intended to produce per-seed CSV files and plot the figures. Refer to the source for the exact training configuration, random seeds, and output paths.
 
 ---
 
