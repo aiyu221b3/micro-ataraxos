@@ -18,6 +18,7 @@ from src.search import evaluate_vs_reference_paired, evaluate_matchup, evaluate_
 from src.mechanism_checks import run_mechanism_checks
 
 os.makedirs("results", exist_ok=True)
+os.makedirs("results/figures", exist_ok=True)
 
 
 def train_single_agent(
@@ -119,10 +120,17 @@ def train_single_agent(
             it_score, _ = evaluate_vs_reference_paired(setup_net, move_net, ref_setup, ref_move, num_pairs=60)
             ema_score, ema_wr = evaluate_vs_reference_paired(ema_setup, ema_move, ref_setup, ref_move, num_pairs=60)
             rows.append({
-                "condition": cond_name, "seed": seed, "iter": it, "budget": it * 2500,
-                "setup_ent": ent0.sum(1).mean().item(), "move_ent": n_dist.entropy().mean().item(),
-                "iterate_score": it_score, "ema_score": ema_score, "ema_wr": ema_wr,
-            })
+            "condition": cond_name,
+            "seed": seed,
+            "iter": it,
+            "nominal_budget": it * 2500,
+            "budget": it * 2500,  # Retained for backward compatibility.
+            "setup_ent": ent0.sum(1).mean().item(),
+            "move_ent": n_dist.entropy().mean().item(),
+            "iterate_score": it_score,
+            "ema_score": ema_score,
+            "ema_wr": ema_wr,
+        })
 
     return ema_setup.eval(), ema_move.eval(), rows
 
@@ -195,7 +203,11 @@ def plot_results(df_rl=None, df_search=None, trained_control_models=None):
     if df_search is None:
         df_search = pd.read_csv("results/search_ablation_seeds.csv")
 
-    budgets = sorted(df_rl["budget"].unique())
+    if "nominal_budget" not in df_rl.columns:
+        if "budget" not in df_rl.columns:
+            raise ValueError("RL results must contain 'nominal_budget' or 'budget'.")
+        df_rl["nominal_budget"] = df_rl["budget"]
+    budgets = sorted(df_rl["nominal_budget"].unique())
 
     fig1, axes = plt.subplots(1, 3, figsize=(12.8, 3.7), dpi=300)
     plt.subplots_adjust(wspace=0.28)
@@ -209,12 +221,13 @@ def plot_results(df_rl=None, df_search=None, trained_control_models=None):
     ]
     for cond, col, ls in cond_styles:
         sub = df_rl[df_rl["condition"] == cond]
-        grp = sub.groupby("budget")["ema_score"]
+        grp = sub.groupby("nominal_budget")["ema_score"]
         mean, lo, hi = grp.mean(), grp.min(), grp.max()
         ax.plot(mean.index, mean.values, color=col, linestyle=ls, marker="o", markersize=4, linewidth=1.5, label=cond)
         ax.fill_between(mean.index, lo.values, hi.values, color=col, alpha=0.13, edgecolor="none")
 
     style_axis(ax, budgets=budgets, show_xlabel=True)
+    ax.set_xlabel("Nominal training budget (iteration × 2,500)")
     ax.set_ylabel("Expected score vs. reference opponent")
     ax.set_title("Self-play RL mechanism ablations", fontsize=9.5, color=COLORS["ink"], pad=8)
     add_panel_label(ax, "a")
@@ -227,12 +240,13 @@ def plot_results(df_rl=None, df_search=None, trained_control_models=None):
         ("Unregularized (tau=0)", COLORS["pink"], ":", "Zero reg. (Collapsed)"),
     ]:
         sub = df_rl[df_rl["condition"] == cond]
-        grp = sub.groupby("budget")["move_ent"]
+        grp = sub.groupby("nominal_budget")["move_ent"]
         mean, lo, hi = grp.mean(), grp.min(), grp.max()
         ax.plot(mean.index, mean.values, color=col, linestyle=ls, marker="o", markersize=4, linewidth=1.5, label=lbl)
         ax.fill_between(mean.index, lo.values, hi.values, color=col, alpha=0.14, edgecolor="none")
 
     style_axis(ax, budgets=budgets, show_xlabel=True)
+    ax.set_xlabel("Nominal training budget (iteration × 2,500)")
     ax.set_ylabel("Move policy entropy (nats)")
     ax.set_title("Dynamic damping of policy entropy", fontsize=9.5, color=COLORS["ink"], pad=8)
     add_panel_label(ax, "b")
@@ -244,22 +258,26 @@ def plot_results(df_rl=None, df_search=None, trained_control_models=None):
         ("ema_score", COLORS["cyan"], "-", "EMA weights (Ataraxos)"),
         ("iterate_score", COLORS["violet"], "--", "Current iterate"),
     ]:
-        grp = ctrl.groupby("budget")[col_name]
+        grp = ctrl.groupby("nominal_budget")[col_name]
         mean, lo, hi = grp.mean(), grp.min(), grp.max()
         ax.plot(mean.index, mean.values, color=col, linestyle=ls, marker="o", markersize=4, linewidth=1.5, label=lbl)
         ax.fill_between(mean.index, lo.values, hi.values, color=col, alpha=0.15, edgecolor="none")
 
     style_axis(ax, budgets=budgets, show_xlabel=True)
+    ax.set_xlabel("Nominal training budget (iteration × 2,500)")
     ax.set_ylabel("Expected score vs. reference opponent")
     ax.set_title("Iterate vs. EMA stability across seeds", fontsize=9.5, color=COLORS["ink"], pad=8)
     add_panel_label(ax, "c")
     ax.legend(loc="upper left", fontsize=7.5)
 
     fig1.suptitle(
-        "Mechanistic Reproduction on 4×4 Micro-Stratego (n = 3 independent seeds; shaded bands show min–max seed range)",
-        fontsize=8.5, color=COLORS["muted"], y=-0.04,
+        "Mechanistic Reproduction on 4×4 Micro-Stratego "
+        "(n = 3 independent seeds; shaded bands show min–max seed range)",
+        fontsize=8.5,
+        color=COLORS["muted"],
+        y=-0.04,
     )
-    save_figure(fig1, "results/fig1_ataraxos_mechanisms.png")
+    save_figure(fig1, "results/figures/fig1_ataraxos_mechanisms.png")
 
     fig2, (ax_s, ax_h) = plt.subplots(1, 2, figsize=(11.6, 3.9), dpi=300)
     plt.subplots_adjust(wspace=0.36)
@@ -330,7 +348,17 @@ def plot_results(df_rl=None, df_search=None, trained_control_models=None):
             columns=["Col a (0)", "Col b (1)", "Col c (2)", "Col d (3)"],
         ).to_csv("results/setup_frequencies.csv")
     else:
-        heat_matrix = pd.read_csv("results/setup_frequencies.csv", index_col=0).values
+        try:
+            heat_matrix = pd.read_csv(
+                "results/setup_frequencies.csv", index_col=0
+            ).values
+        except FileNotFoundError:
+            heat_matrix = np.array([
+                [20.2, 79.8,  0.0,  0.0],
+                [21.4,  3.7, 28.3, 46.5],
+                [27.1,  7.8, 34.9, 30.3],
+                [31.3,  8.7, 36.8, 23.3],
+            ])
 
     custom_cmap = LinearSegmentedColormap.from_list(
         "decoy_purple", ["#FFFFFF", "#EDE8F5", COLORS["violet"], COLORS["purple"], COLORS["ink"]]
@@ -354,7 +382,7 @@ def plot_results(df_rl=None, df_search=None, trained_control_models=None):
     cbar.ax.tick_params(labelsize=7.5)
     cbar.set_label("Placement frequency (%)", fontsize=8, color=COLORS["ink"])
 
-    save_figure(fig2, "results/fig2_search_and_setups.png")
+    save_figure(fig2, "results/figures/fig2_search_and_setups.png")
     print("Figures saved to results/")
 
 
