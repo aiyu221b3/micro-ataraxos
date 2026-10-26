@@ -17,7 +17,7 @@ The implementation follows the paper's core design while making explicit reducti
 | Component | Paper specification | Implementation (`src/`) | Fidelity / scope |
 | :--- | :--- | :--- | :--- |
 | **Interdependent self-play** | Decoder-only setup Transformer trained with Monte Carlo returns, coupled with an encoder-only move Transformer trained with λ-returns | `SetupNetwork` + `MoveNetwork` (`src/networks.py`, `src/rl.py`) | Core architecture reproduced at reduced scale |
-| **Spatial move parameterization** | Key-query bilinear product: \(\text{Logits}(i \to j) = \frac{(W_Q X)_i^\top (W_K X)_j}{\sqrt{d}}\) | `torch.bmm(Q, K.transpose(1, 2)) * scale` | Parameterization reproduced |
+| **Spatial move parameterization** | Key-query bilinear product. | `torch.bmm(Q, K.transpose(1, 2)) * scale` | Parameterization reproduced |
 | **Advantage magnitude filtering** | Train on moves with sufficiently large estimated advantage magnitudes, \(|\hat{A}_t|\) | Top-50% quantile filter on \(|\hat{A}_t|\) (`src/rl.py`) | Mechanism reproduced with an explicit threshold |
 | **Dynamic damping and update control** | Power-law annealing of setup entropy regularization and move-policy regularization, proximal reverse-KL regularization against the data-collection policy, PPO-style clipping, gradient-norm clipping, and a power-law Adam learning-rate schedule | `get_damping_schedules` (`src/rl.py`) | Core mechanism implemented; schedule and loss details documented in code |
 | **Autoregressive belief network** | Encoder, hidden-token filtering, and row-major autoregressive decoder | `BeliefNetwork._filter_hidden_tokens` and inventory-conservation masking | Core architecture reproduced at reduced scale |
