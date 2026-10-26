@@ -170,7 +170,7 @@ micro-ataraxos/
 | `paper_style.py` | Plotting style and typography |
 | `run_reproduction.py` | Experiment orchestration, evaluation, result export, and figure generation |
 
-The exact files available in a checkout depend on the version being reproduced. The repository structure above describes the intended organisation; consult the actual source when following implementation details.
+Result file names might slightly defer in format.
 
 ---
 
