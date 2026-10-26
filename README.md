@@ -1,12 +1,12 @@
 # micro-ataraxos: mechanistic reproduction of scalable decision-making for imperfect information
 
-A single-GPU mechanistic study of **Ataraxos** ([Sokota et al., Nature, 2026](https://doi.org/10.1038/s41586-026-11036-y)) in a scaled **4×4 Micro-Stratego** environment.
+A single-GPU mechanistic study of **Ataraxos** ([Sokota et al., *Nature*, 2026](https://doi.org/10.1038/s41586-026-11036-y)) in a scaled **4×4 Micro-Stratego** environment.
 
 Full 10×10 Stratego training requires 16 H100 GPUs for a week, amounting to approximately 208 billion environment steps. Rather than matching that scale, this project investigates whether the paper's core algorithmic mechanisms can be implemented and studied on modest compute.
 
 The environment is reduced to a 4×4 board with four pieces per player: `Flag`, `Spy`, `Miner`, and `Marshal`. The implementation retains the interdependent setup and move-learning phases, dynamically damped self-play reinforcement learning, autoregressive hidden-state belief modelling, and test-time update-equivalence search.
 
-**The goal is mechanistic fidelity, not scale replication.** The reduced environment makes the learning and search mechanisms easier to inspect, test, and ablate.
+**The goal is mechanistic fidelity, not scale replication.** The reduced environment makes the learning and search mechanisms easier to inspect, test, and ablate. No 16-GPU cluster required.
 
 ---
 
@@ -16,7 +16,7 @@ The implementation follows the paper's core design while making explicit reducti
 
 | Component | Paper specification | Implementation | Fidelity and scope |
 |---|---|---|---|
-| **Interdependent self-play** | Decoder-only setup Transformer trained with Monte Carlo returns, coupled with an encoder-only move Transformer trained with lambda-returns | `SetupNetwork` and `MoveNetwork` in `src/networks.py` and `src/rl.py` | Core architecture reproduced at reduced scale |
+| **Interdependent self-play** | Decoder-only setup Transformer trained with Monte Carlo returns, coupled with an encoder-only move Transformer trained with λ-returns | `SetupNetwork` and `MoveNetwork` in `src/networks.py` and `src/rl.py` | Core architecture reproduced at reduced scale |
 | **Spatial move parameterization** | Key-query bilinear product for computing spatial action logits | `torch.bmm(Q, K.transpose(1, 2)) * scale` | Parameterization reproduced |
 | **Advantage magnitude filtering** | Retain moves with sufficiently large estimated advantage magnitudes | Top-50% quantile filter on absolute estimated advantages in `src/rl.py` | Mechanism implemented with an explicit threshold |
 | **Dynamic damping and update control** | Power-law annealing of setup entropy regularization and move-policy regularization; proximal reverse-KL regularization, PPO-style clipping, gradient-norm clipping, and a power-law Adam learning-rate schedule | `get_damping_schedules` in `src/rl.py` | Core mechanisms implemented; exact update details should be checked against the paper |
@@ -45,7 +45,6 @@ torch.bmm(Q, K.transpose(1, 2)) * scale
 
 Here, `Q` and `K` are the query and key representations, respectively, and `scale` implements the inverse-square-root scaling.
 
-
 ---
 
 ## Experimental Questions
@@ -67,14 +66,14 @@ The experiments investigate these mechanisms in a reduced environment. They are 
 The current experimental suite includes three independent training seeds, multiple training budgets, search ablations, and belief-model evaluation.
 
 ### 1. Self-play learning and regularization
-![Ataraxos self-play mechanism ablations](results/figures/fig1.png)
 
+![Ataraxos self-play mechanism ablations](results/figures/fig1.png)
 
 The experiments compare the full training configuration against variants without learning-rate annealing, advantage filtering, or regularization annealing. A separate zero-regularization condition examines policy behaviour when regularization is removed.
 
 The results show differences in learning curves, final expected scores, and policy entropy across these configurations.
 
-At the final 200,000-step budget, the reported mean EMA expected scores against the reference opponent are:
+At the final nominal training-budget label of 200,000, the reported mean EMA expected scores against the reference opponent are:
 
 | Configuration | Mean expected score | Mean move entropy |
 |---|---:|---:|
@@ -89,6 +88,7 @@ These results are consistent with the full configuration performing best on the 
 The two regularization ablations are distinct experiments and should not be interpreted interchangeably.
 
 ### 2. Test-time update-equivalence search
+
 ![Search ablations and learned setup frequencies](results/figures/fig2.png)
 
 The search experiments compare five conditions:
@@ -122,7 +122,7 @@ They do not, by themselves, establish generalization to unfamiliar opponent poli
 ### Experimental protocol
 
 - **Environment:** 4×4 Micro-Stratego.
-- **Training budgets:** 2,500 to 200,000 environment steps.
+- **Nominal training-budget labels:** 2,500 to 200,000 units, calculated as `iteration × 2,500`. These labels are not verified counts of actual environment interactions.
 - **Independent training seeds:** 42, 43, and 44.
 - **Search evaluation:** 120 games per condition per seed.
 - **Uncertainty reporting:** observed variation across independent seeds; shaded regions in training plots show the minimum-to-maximum seed range.
@@ -132,6 +132,8 @@ Three seeds provide an initial view of run-to-run variability, not a precise est
 ---
 
 ## Repository Structure
+
+The repository is organised around the environment, learning algorithms, search, experiment orchestration, and results.
 
 ```text
 micro-ataraxos/
@@ -150,7 +152,11 @@ micro-ataraxos/
     ├── search_ablation_seeds.csv
     ├── belief_calibration_seeds.csv
     └── figures/
+        ├── fig1.png
+        └── fig2.png
 ```
+
+*Note: filenames and output paths may differ slightly across versions of the reproduction. Check the committed source and experiment runner for the exact file names and locations.*
 
 ### Core modules
 
@@ -164,7 +170,7 @@ micro-ataraxos/
 | `paper_style.py` | Plotting style and typography |
 | `run_reproduction.py` | Experiment orchestration, evaluation, result export, and figure generation |
 
-The repository structure above describes the intended organization. The exact filenames and output paths should match the committed source.
+The exact files available in a checkout depend on the version being reproduced. The repository structure above describes the intended organisation; consult the actual source when following implementation details.
 
 ---
 
@@ -195,7 +201,9 @@ Run the experiment suite:
 python run_reproduction.py
 ```
 
-The runner is intended to produce per-seed CSV files and plot the figures. Refer to the source for the exact training configuration, random seeds, and output paths.
+The runner is intended to produce per-seed CSV files and plots. Refer to the source for the exact training configuration, random seeds, and output paths.
+
+**Reproducibility note:** the figures and reported results correspond to the recorded experimental runs. Reproducing them from scratch requires running the relevant experiments; the presence of a figure alone does not imply that all underlying training checkpoints or intermediate artifacts are included.
 
 ---
 
