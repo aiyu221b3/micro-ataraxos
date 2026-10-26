@@ -2,11 +2,11 @@
 
 A single-GPU mechanistic study of **Ataraxos** ([Sokota et al., *Nature*, 2026](https://doi.org/10.1038/s41586-026-11036-y)) in a scaled **4×4 Micro-Stratego** environment.
 
-Full 10×10 Stratego training requires 16 H100 GPUs for a week, amounting to approximately 208 billion environment steps. Rather than matching that scale, this project investigates whether the paper's core algorithmic mechanisms can be implemented and studied on modest compute.
+Full 10×10 Stratego training requires substantial compute: the paper reports a setup involving 16 H100 GPUs over a week, amounting to approximately 208 billion environment steps. Rather than matching that scale, this project investigates whether the paper's core algorithmic mechanisms can be implemented, tested, and studied in a deliberately reduced environment.
 
-The environment is reduced to a 4×4 board with four pieces per player: `Flag`, `Spy`, `Miner`, and `Marshal`. The implementation retains the interdependent setup and move-learning phases, dynamically damped self-play reinforcement learning, autoregressive hidden-state belief modelling, and test-time update-equivalence search.
+The environment uses a 4×4 board with four pieces per player: `Flag`, `Spy`, `Miner`, and `Marshal`. The implementation retains the interdependent setup and move-learning phases, dynamically damped self-play reinforcement learning, autoregressive hidden-state belief modelling, and test-time update-equivalence search.
 
-**The goal is mechanistic fidelity, not scale replication.** The reduced environment makes the learning and search mechanisms easier to inspect, test, and ablate. No 16-GPU cluster required.
+**The goal is mechanistic fidelity, not scale replication.** The smaller environment makes the learning and search mechanisms easier to inspect, test, and ablate. No 16-GPU cluster required.
 
 ---
 
@@ -57,23 +57,25 @@ The reproduction focuses on five mechanism-level questions:
 4. How does policy entropy evolve under different regularization configurations?
 5. How do the current policy iterate and EMA weights differ during training?
 
-The experiments investigate these mechanisms in a reduced environment. They are not intended to estimate full-scale Stratego performance!
+The experiments investigate these mechanisms in a reduced environment. They are not intended to estimate full-scale Stratego performance.
 
 ---
 
 ## Results
 
-The current experimental suite includes three independent training seeds, multiple training budgets, search ablations, and belief-model evaluation.
+The current experimental suite includes three independent training seeds, multiple training checkpoints, search ablations, and belief-model evaluation.
+
+The figures below are generated from the recorded experimental results. Training curves use the recorded training iterations as their horizontal axis. The nominal budget labels retained in the CSVs are bookkeeping labels, not verified counts of actual environment interactions.
 
 ### 1. Self-play learning and regularization
 
-![Ataraxos self-play mechanism ablations](results/figures/fig1.png)
+![Self-play reinforcement learning mechanism ablations](results/figures/fig1_ataraxos_mechanisms.png)
 
 The experiments compare the full training configuration against variants without learning-rate annealing, advantage filtering, or regularization annealing. A separate zero-regularization condition examines policy behaviour when regularization is removed.
 
 The results show differences in learning curves, final expected scores, and policy entropy across these configurations.
 
-At the final nominal training-budget label of 200,000, the reported mean EMA expected scores against the reference opponent are:
+At the final checkpoint, iteration 80, the reported mean EMA expected scores against the reference opponent are:
 
 | Configuration | Mean expected score | Mean move entropy |
 |---|---:|---:|
@@ -89,9 +91,9 @@ The two regularization ablations are distinct experiments and should not be inte
 
 ### 2. Test-time update-equivalence search
 
-![Search ablations and learned setup frequencies](results/figures/fig2.png)
+![Search ablations and learned setup frequencies](results/figures/fig2_search_and_setups.png)
 
-The search experiments compare five conditions:
+The search experiments compare the following conditions:
 
 - **Full search:** learned belief model, depth 6, 48 rollout worlds.
 - **Shallow search:** learned belief model, depth 2, 16 rollout worlds.
@@ -117,12 +119,13 @@ For comparison, the uniform baseline achieves a negative log-likelihood of **1.3
 
 These results provide evidence that the model learns to predict hidden piece identities beyond a uniform prior.
 
-They do not, by themselves, establish generalization to unfamiliar opponent policies. That question depends on the evaluation distribution and the independence of the evaluation data from training.
+They do not, by themselves, establish generalization to unfamiliar opponent policies. That question depends on the evaluation distribution and the independence of the evaluation data from training. The uniform-baseline comparison also depends on whether its probability assignments respect the same inventory constraints as the learned belief model.
 
 ### Experimental protocol
 
 - **Environment:** 4×4 Micro-Stratego.
-- **Nominal training-budget labels:** 2,500 to 200,000 units, calculated as `iteration × 2,500`. These labels are not verified counts of actual environment interactions.
+- **Training checkpoints:** iterations 1, 4, 16, 40, and 80.
+- **Nominal training-budget labels:** 2,500 to 200,000 units, computed as `iteration × 2,500`. These labels are bookkeeping values, not verified counts of environment interactions.
 - **Independent training seeds:** 42, 43, and 44.
 - **Search evaluation:** 120 games per condition per seed.
 - **Uncertainty reporting:** observed variation across independent seeds; shaded regions in training plots show the minimum-to-maximum seed range.
@@ -132,8 +135,6 @@ Three seeds provide an initial view of run-to-run variability, not a precise est
 ---
 
 ## Repository Structure
-
-The repository is organised around the environment, learning algorithms, search, experiment orchestration, and results.
 
 ```text
 micro-ataraxos/
@@ -152,8 +153,8 @@ micro-ataraxos/
     ├── search_ablation_seeds.csv
     ├── belief_calibration_seeds.csv
     └── figures/
-        ├── fig1.png
-        └── fig2.png
+        ├── fig1_ataraxos_mechanisms.png
+        └── fig2_search_and_setups.png
 ```
 
 *Note: filenames and output paths may differ slightly across versions of the reproduction. Check the committed source and experiment runner for the exact file names and locations.*
@@ -167,10 +168,8 @@ micro-ataraxos/
 | `src/rl.py` | Damping schedules, return estimation, EMA, and belief training |
 | `src/search.py` | Tabular update-equivalence search and evaluation |
 | `src/mechanism_checks.py` | Implementation-level invariant and mechanism checks |
-| `paper_style.py` | Plotting style and typography |
-| `run_reproduction.py` | Experiment orchestration, evaluation, result export, and figure generation |
-
-Result file names might slightly defer in format.
+| `paper_style.py` | Plotting style, typography, axis formatting, and figure export |
+| `run_reproduction.py` | Experiment orchestration, evaluation, CSV export, and figure generation |
 
 ---
 
@@ -178,7 +177,7 @@ Result file names might slightly defer in format.
 
 The main entry point is `run_reproduction.py`.
 
-The experiment runner executes mechanism checks, trains the self-play agents, evaluates the ablations, and exports the results and figures.
+The experiment runner executes mechanism checks, trains the self-play agents, evaluates the ablations, exports the results as CSV files, and generates the figures.
 
 ### Installation
 
@@ -201,7 +200,7 @@ Run the experiment suite:
 python run_reproduction.py
 ```
 
-The runner is intended to produce per-seed CSV files and plots. Refer to the source for the exact training configuration, random seeds, and output paths.
+The experiment runner writes the per-seed results to CSV files under `results/` and saves the figures under `results/figures/`. Refer to the committed source for the exact training configuration, random seeds, and output paths.
 
 **Reproducibility note:** the figures and reported results correspond to the recorded experimental runs. Reproducing them from scratch requires running the relevant experiments; the presence of a figure alone does not imply that all underlying training checkpoints or intermediate artifacts are included.
 
@@ -214,6 +213,8 @@ This is a reduced-scale mechanistic study, not a full-scale reproduction of Atar
 The smaller board, reduced piece inventory, shorter horizon, network configuration, and limited training budget change the strategic environment and computational demands. Consequently, the results should be interpreted as evidence about the implemented mechanisms within Micro-Stratego, not as estimates of full-scale Stratego performance.
 
 The experiments use three independent seeds. Their observed variability is reported descriptively and should not be interpreted as a precise estimate of population uncertainty.
+
+The nominal training-budget labels are not verified interaction counts. The current results therefore do not support claims about sample efficiency measured in actual environment interactions.
 
 The implementation aims to preserve the structure of the paper's core mechanisms while making the system computationally accessible and experimentally inspectable. Architectural similarity alone does not establish exact equivalence of every training objective, update equation, or search detail.
 
