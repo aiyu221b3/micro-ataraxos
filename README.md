@@ -1,8 +1,8 @@
 # micro-ataraxos: mechanistic reproduction of scalable decision-making for imperfect information
 
-A single-GPU mechanistic study of **Ataraxos** ([Sokota et al., *Nature*, 2026](https://doi.org/10.1038/s41586-026-11036-y)) in a scaled **4×4 Micro-Stratego** environment.
+A single-GPU mechanistic study of **Ataraxos**, the system introduced by Sokota et al. in *Nature* (2026), in a scaled **4×4 Micro-Stratego** environment. The original paper is titled [“Scalable decision-making for games of imperfect information”](https://doi.org/10.1038/s41586-026-11036-y).
 
-Full 10×10 Stratego training requires substantial compute: the paper reports a setup involving 16 H100 GPUs over a week, amounting to approximately 208 billion environment steps. Rather than matching that scale, this project investigates whether the paper's core algorithmic mechanisms can be implemented, tested, and studied in a deliberately reduced environment.
+The paper reports that its full-scale Stratego reinforcement-learning run used 16 NVIDIA H100 GPUs for one week and comprised 163 million finished games and 208 billion environment steps. Belief-network training was a separate run using four H100 GPUs for four days. This project does not attempt to match that compute scale; instead, it implements and studies selected algorithmic mechanisms in a deliberately reduced environment.
 
 The environment uses a 4×4 board with four pieces per player: `Flag`, `Spy`, `Miner`, and `Marshal`. The implementation retains the interdependent setup and move-learning phases, dynamically damped self-play reinforcement learning, autoregressive hidden-state belief modelling, and test-time update-equivalence search.
 
@@ -19,7 +19,7 @@ The implementation follows the paper's core design while making explicit reducti
 | **Interdependent self-play** | Decoder-only setup Transformer trained with Monte Carlo returns, coupled with an encoder-only move Transformer trained with λ-returns | `SetupNetwork` and `MoveNetwork` in `src/networks.py` and `src/rl.py` | Core architecture reproduced at reduced scale |
 | **Spatial move parameterization** | Key-query bilinear product for computing spatial action logits | `torch.bmm(Q, K.transpose(1, 2)) * scale` | Parameterization reproduced |
 | **Advantage magnitude filtering** | Retain moves with sufficiently large estimated advantage magnitudes | Top-50% quantile filter on absolute estimated advantages in `src/rl.py` | Mechanism implemented with an explicit threshold |
-| **Dynamic damping and update control** | Power-law annealing of setup entropy regularization and move-policy regularization; proximal reverse-KL regularization, PPO-style clipping, gradient-norm clipping, and a power-law Adam learning-rate schedule | `get_damping_schedules` in `src/rl.py` | Core mechanisms implemented; exact update details should be checked against the paper |
+| **Dynamic damping and update control** | Annealed regularization, reverse-KL update control, importance-ratio clipping, gradient-norm clipping, and a power-law move-network learning-rate schedule | `get_damping_schedules` and the update losses in `src/rl.py` | Core mechanisms implemented with reduced-scale schedules and coefficients |
 | **Autoregressive belief network** | Encoder, hidden-token filtering, and row-major autoregressive decoder | `BeliefNetwork._filter_hidden_tokens` and inventory-conservation masking | Core architecture reproduced at reduced scale |
 | **Test-time search** | Depth-limited rollouts over sampled belief worlds, followed by a tabular magnetic mirror-descent update | `ataraxos_search_action` in `src/search.py` | Search mechanism implemented with reduced game complexity |
 | **Environment and horizon** | 10×10 board, 40 pieces per player, and the original movement, chasing, and game-length rules | 4×4 board, four pieces per player, two-square rule, and 24-move draw limit | Deliberate scale reduction |
@@ -52,7 +52,7 @@ Here, `Q` and `K` are the query and key representations, respectively, and `scal
 The reproduction focuses on five mechanism-level questions:
 
 1. Does update-equivalence search improve play against a tactically distinct opponent?
-2. How much of the improvement depends on learned belief modelling and search depth?
+2. How do the shallower, lower-rollout search configuration and the uniform-belief ablation compare with full search?
 3. How do advantage filtering, learning-rate annealing, and regularization affect self-play learning?
 4. How does policy entropy evolve under different regularization configurations?
 5. How do the current policy iterate and EMA weights differ during training?
@@ -79,7 +79,7 @@ At the final checkpoint, iteration 80, the reported mean EMA expected scores aga
 
 | Configuration | Mean expected score | Mean move entropy |
 |---|---:|---:|
-| Full Ataraxos | +0.119 | 0.271 |
+| Full configuration (reduced-scale) | +0.119 | 0.271 |
 | Without advantage filtering | +0.053 | 0.265 |
 | Without learning-rate annealing | +0.064 | 0.230 |
 | Without regularization annealing | -0.094 | 0.667 |
@@ -93,7 +93,7 @@ The two regularization ablations are distinct experiments and should not be inte
 
 ![Search ablations and learned setup frequencies](results/figures/fig2_search_and_setups.png)
 
-The search experiments compare the following conditions:
+The search experiments compare the following conditions. Evaluation is against an engineered tactical out-of-distribution (OOD) opponent that combines a trained move policy with tactical heuristics; it is not a human-opponent evaluation.
 
 - **Full search:** learned belief model, depth 6, 48 rollout worlds.
 - **Shallow search:** learned belief model, depth 2, 16 rollout worlds.
@@ -152,6 +152,7 @@ micro-ataraxos/
     ├── rl_ablation_seeds.csv
     ├── search_ablation_seeds.csv
     ├── belief_calibration_seeds.csv
+    ├── setup_frequencies.csv  # generated by a full run; optional for plot-only use
     └── figures/
         ├── fig1_ataraxos_mechanisms.png
         └── fig2_search_and_setups.png
@@ -198,7 +199,13 @@ Run the experiment suite:
 python run_reproduction.py
 ```
 
-The experiment runner writes the per-seed results to CSV files under `results/` and saves the figures under `results/figures/`. Refer to the committed source for the exact training configuration, random seeds, and output paths.
+The experiment runner writes per-seed result CSVs under `results/`, generates `results/setup_frequencies.csv`, and saves the figures under `results/figures/`. To regenerate figures from saved results without retraining, run:
+
+```bash
+python -c "from run_reproduction import plot_results; plot_results()"
+```
+
+This plot-only path reads the existing RL and search CSVs. For the setup-frequency heatmap, it reads `results/setup_frequencies.csv` when present and otherwise uses the built-in fallback values. A full run recomputes the heatmap from the newly trained control models.
 
 **Reproducibility note:** the figures and reported results correspond to the recorded experimental runs. Reproducing them from scratch requires running the relevant experiments; the presence of a figure alone does not imply that all underlying training checkpoints or intermediate artifacts are included.
 
@@ -222,7 +229,7 @@ The project is intended to make these mechanisms easier to study, test, and abla
 
 ## Reference
 
-Sokota et al. (2026). *Ataraxos: scalable decision-making for imperfect information*. Nature.
+Sokota, S. et al. (2026). “Scalable decision-making for games of imperfect information.” *Nature*.
 
 https://doi.org/10.1038/s41586-026-11036-y
 
